@@ -37,9 +37,19 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as 
             # Check if both wrists are above a certain threshold (adjust as needed)
             if left_wrist.y < 0.2 and right_wrist.y < 0.2:
                 # Hands are up, so draw a bounding box and message
-                cv2.rectangle(frame, (50, 50), (590, 430), (0, 255, 0), 2)
+                cv2.rectangle(frame, (50, 50), (590, 150), (0, 255, 0), 2)
                 cv2.putText(frame, "Hands Up!", (60, 80), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
-        
+
+            # Get the landmarks for the hands down (left and right)
+            left_hip = results.pose_landmarks.landmark[15]
+            right_hip = results.pose_landmarks.landmark[16]
+
+            # Check if both hands are below a certain threshold (adjust as needed)
+            if left_hip.y > 0.8 and right_hip.y > 0.8 is not None and results.pose_landmarks.landmark[12].y < 0.5:
+                # Hands are up, so draw a bounding box and message
+                cv2.rectangle(frame, (50, 50), (590, 150), (0, 0, 255), 2)
+                cv2.putText(frame, "Hands Down!", (60, 80), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+
         # Show the frame
         cv2.imshow('Mediapipe Feed', frame)
         # Break if q is pressed
