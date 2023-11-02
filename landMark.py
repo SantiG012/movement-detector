@@ -1,6 +1,6 @@
 import math
 
-class Landmark():
+class LandMark():
     x = 0
     y = 0
     z = 0

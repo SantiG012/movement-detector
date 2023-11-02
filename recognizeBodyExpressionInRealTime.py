@@ -1,9 +1,9 @@
 import cv2
 import mediapipe as mp
 import pulsar 
-from body_landmarks import BODY_LANDMARKS
+from bodyLandmarks import BODY_LANDMARKS
 import json
-from landmark import Landmark
+from landMark import LandMark
 
 # Variables hands target
 handsUp = 0
@@ -23,14 +23,14 @@ def pulsarSendMessage(producer, handsSendMessage):
 def filter(landmarks)->list:
     return [landmarks[landmark_index] for landmark_index in BODY_LANDMARKS.values()]
 
-def instantiate(landmarks)->list[Landmark]:
-    return [Landmark(landmark.x, landmark.y, landmark.z) for landmark in landmarks]
+def instantiate(landmarks)->list[LandMark]:
+    return [LandMark(landmark.x, landmark.y, landmark.z) for landmark in landmarks]
 
 def send(landmarks,producer)->None:
     producer.send((landmarks).encode('utf-8'))
     producer.flush()
 
-def landmark_to_json(landmark:Landmark)->str:
+def landmarkToJson(landmark:LandMark)->str:
     return {
         "x": landmark.x,
         "y": landmark.y,
@@ -40,20 +40,17 @@ def landmark_to_json(landmark:Landmark)->str:
 def prepare(landmarks):
     landmarks = filter(landmarks)
     landmarks = instantiate(landmarks)
-    landmarks = json.dumps(landmarks,default=landmark_to_json)
+    landmarks = json.dumps(landmarks,default=landmarkToJson)
     return landmarks
-
-
-
 
 
 # Mediapipe utilities
 def recognizeBodyExpressionInRealTime():
-    mp_drawing = mp.solutions.drawing_utils # Drawing utilities
-    mp_pose = mp.solutions.pose # Pose utilities
+    mpDrawing = mp.solutions.drawing_utils # Drawing utilities
+    mpPose = mp.solutions.pose # Pose utilities
 
     # Initiate the pose model
-    with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as pose:
+    with mpPose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as pose:
         
         # Open the camera
         cap = cv2.VideoCapture(0)
@@ -67,23 +64,23 @@ def recognizeBodyExpressionInRealTime():
             if not ret:
                 break
             
-            frame = cv2.resize(frame, (640, 480)) # Resize the frame
-            frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB) # Convert the frame to RGB
-            results = pose.process(frame_rgb) # Process the frame
+            frame = cv2.resize(frame, (1600, 900)) # Resize the frame
+            frameRgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB) # Convert the frame to RGB
+            results = pose.process(frameRgb) # Process the frame
 
             # Draw the landmarks
             if results.pose_landmarks is not None:
-                mp_drawing.draw_landmarks(frame, results.pose_landmarks, mp_pose.POSE_CONNECTIONS,
-                                        mp_drawing.DrawingSpec(color=(245, 117, 66), thickness=2, circle_radius=2),
-                                        mp_drawing.DrawingSpec(color=(245, 66, 230), thickness=2, circle_radius=2)
+                mpDrawing.draw_landmarks(frame, results.pose_landmarks, mpPose.POSE_CONNECTIONS,
+                                        mpDrawing.DrawingSpec(color=(245, 117, 66), thickness=2, circle_radius=2),
+                                        mpDrawing.DrawingSpec(color=(245, 66, 230), thickness=2, circle_radius=2)
                                         )
                 
                 # Get the landmarks for the wrists (left and right)
-                left_wrist = results.pose_landmarks.landmark[15]
-                right_wrist = results.pose_landmarks.landmark[16]
+                leftWrist = results.pose_landmarks.landmark[15]
+                rightWrist = results.pose_landmarks.landmark[16]
 
                 # Check if both wrists are above a certain threshold (adjust as needed)
-                if left_wrist.y < 0.2 and right_wrist.y < 0.2:
+                if leftWrist.y < 0.2 and rightWrist.y < 0.2:
                     landmarks = prepare(results.pose_landmarks.landmark)
                     send(landmarks,pulsarProducer())
 
