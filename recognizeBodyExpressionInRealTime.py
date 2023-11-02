@@ -1,6 +1,9 @@
 import cv2
 import mediapipe as mp
 import pulsar 
+from body_landmarks import BODY_LANDMARKS
+import json
+from landmark import Landmark
 
 # Variables hands target
 handsUp = 0
@@ -16,6 +19,33 @@ def pulsarProducer():
 def pulsarSendMessage(producer, handsSendMessage):
     producer.send(('Hands ' + handsSendMessage).encode('utf-8'))
     producer.flush()
+
+def filter(landmarks)->list:
+    return [landmarks[landmark_index] for landmark_index in BODY_LANDMARKS.values()]
+
+def instantiate(landmarks)->list[Landmark]:
+    return [Landmark(landmark.x, landmark.y, landmark.z) for landmark in landmarks]
+
+def send(landmarks,producer)->None:
+    producer.send((landmarks).encode('utf-8'))
+    producer.flush()
+
+def landmark_to_json(landmark:Landmark)->str:
+    return {
+        "x": landmark.x,
+        "y": landmark.y,
+        "z": landmark.z
+    }
+
+def prepare(landmarks):
+    landmarks = filter(landmarks)
+    landmarks = instantiate(landmarks)
+    landmarks = json.dumps(landmarks,default=landmark_to_json)
+    return landmarks
+
+
+
+
 
 # Mediapipe utilities
 def recognizeBodyExpressionInRealTime():
@@ -54,6 +84,9 @@ def recognizeBodyExpressionInRealTime():
 
                 # Check if both wrists are above a certain threshold (adjust as needed)
                 if left_wrist.y < 0.2 and right_wrist.y < 0.2:
+                    landmarks = prepare(results.pose_landmarks.landmark)
+                    send(landmarks,pulsarProducer())
+
                     # Hands are up, so draw a bounding box and message
                     cv2.rectangle(frame, (50, 50), (590, 150), (0, 255, 0), 2)
                     cv2.putText(frame, "Hands Up!", (60, 80), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
@@ -70,6 +103,9 @@ def recognizeBodyExpressionInRealTime():
 
                 # Check if both hands are below a certain threshold (adjust as needed)
                 if left_hip.y > 0.8 and right_hip.y > 0.8 is not None and results.pose_landmarks.landmark[12].y < 0.5:
+                    landmarks = prepare(results.pose_landmarks.landmark)
+                    send(landmarks,pulsarProducer())
+                    
                     # Hands are up, so draw a bounding box and message
                     cv2.rectangle(frame, (50, 50), (590, 150), (0, 0, 255), 2)
                     cv2.putText(frame, "Hands Down!", (60, 80), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
